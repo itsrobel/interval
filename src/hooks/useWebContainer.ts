@@ -42,7 +42,6 @@ export const useWebContainer = (): UseWebContainerReturn => {
         const { WebContainer } = await import("@webcontainer/api");
         const instance = await WebContainer.boot({
           coep: "require-corp",
-          workdirName: "home",
           forwardPreviewErrors: true,
         });
 

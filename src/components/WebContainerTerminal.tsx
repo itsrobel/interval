@@ -9,7 +9,7 @@ import { useWebContainer } from "../hooks/useWebContainer";
 import { jshrc, templates } from "../lib/templates";
 
 export const WebContainerTerminal = () => {
-  const { container, state, mount, spawn, writeFile } = useWebContainer();
+  const { container, state, mount, spawn, writeFile, readdir } = useWebContainer();
   const [terminalProcess, setTerminalProcess] =
     useState<WebContainerProcess | null>(null);
   const [terminalReady, setTerminalReady] = useState(false);
@@ -21,10 +21,30 @@ export const WebContainerTerminal = () => {
 
     try {
       console.log("Setting up shell configuration...");
-      await writeFile("../.jshrc", jshrc);
+      console.log("jshrc content length:", jshrc.length, "bytes");
+      await writeFile(".jshrc", jshrc);
+
+      // Verify .jshrc was written correctly
+      console.log("Verifying .jshrc file...");
+      const catProc = await spawn("cat", [".jshrc"]);
+      catProc.output.pipeTo(new WritableStream({
+        write(data) { console.log(".jshrc content:", data); }
+      }));
+      await catProc.exit;
 
       console.log("Starting shell...");
-      const shellProcess = await spawn("jsh");
+      // Get current working directory to set as HOME
+      const pwdProc = await spawn("pwd", []);
+      let cwd = "";
+      pwdProc.output.pipeTo(new WritableStream({
+        write(data) { cwd = data.trim(); }
+      }));
+      await pwdProc.exit;
+
+      console.log("Setting HOME to:", cwd);
+      const shellProcess = await spawn("jsh", [], {
+        env: { HOME: cwd }
+      });
 
       setTerminalProcess(shellProcess);
 
@@ -52,19 +72,102 @@ export const WebContainerTerminal = () => {
           console.log("Mounting file system...");
           await mount(await templates["global"]());
 
-          console.log("Organizing files...");
-          await spawn("mkdir", ["-p", "../.global/src"]);
-          await spawn("mv", ["git.ts", "../.global/src/git.ts"]);
-          await spawn("mv", ["package.json", "../.global/package.json"]);
-          await spawn("mv", ["pnpm-lock.yaml", "../.global/pnpm-lock.yaml"]);
+          // Verify mount completed
+          const mountedFiles = await readdir(".");
+          console.log("Mounted files:", mountedFiles);
+
+          // Check current working directory
+          console.log("Checking current directory...");
+          const pwdProc = await spawn("pwd", []);
+          pwdProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("Current dir:", data); }
+          }));
+          await pwdProc.exit;
+
+          // Check parent directory structure
+          console.log("Checking parent directory...");
+          const lsParentProc = await spawn("ls", ["-la", ".."]);
+          lsParentProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("Parent dir:", data); }
+          }));
+          await lsParentProc.exit;
+
+          console.log("Creating .global directory structure...");
+          const mkdirProc = await spawn("mkdir", ["-p", ".global/src"]);
+          mkdirProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("mkdir output:", data); }
+          }));
+          const mkdirExit = await mkdirProc.exit;
+          console.log("mkdir exit code:", mkdirExit);
+          if (mkdirExit !== 0) {
+            throw new Error(`mkdir failed with exit code ${mkdirExit}`);
+          }
+
+          console.log("Moving files to .global...");
+          const mvGit = await spawn("mv", ["git.ts", ".global/src/git.ts"]);
+          mvGit.output.pipeTo(new WritableStream({
+            write(data) { console.log("mv git output:", data); }
+          }));
+          const mvGitExit = await mvGit.exit;
+          console.log("mv git exit code:", mvGitExit);
+          if (mvGitExit !== 0) {
+            throw new Error(`mv git failed with exit code ${mvGitExit}`);
+          }
+
+          const mvPkg = await spawn("mv", ["package.json", ".global/package.json"]);
+          mvPkg.output.pipeTo(new WritableStream({
+            write(data) { console.log("mv package output:", data); }
+          }));
+          const mvPkgExit = await mvPkg.exit;
+          console.log("mv package exit code:", mvPkgExit);
+          if (mvPkgExit !== 0) {
+            throw new Error(`mv package failed with exit code ${mvPkgExit}`);
+          }
+
+          const mvLock = await spawn("mv", ["pnpm-lock.yaml", ".global/pnpm-lock.yaml"]);
+          mvLock.output.pipeTo(new WritableStream({
+            write(data) { console.log("mv lock output:", data); }
+          }));
+          const mvLockExit = await mvLock.exit;
+          console.log("mv lock exit code:", mvLockExit);
+          if (mvLockExit !== 0) {
+            throw new Error(`mv lock failed with exit code ${mvLockExit}`);
+          }
+
+          // Verify files moved
+          console.log("Verifying files in .global...");
+          const lsGlobalProc = await spawn("ls", ["-la", ".global"]);
+          lsGlobalProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("Files in .global:", data); }
+          }));
+          await lsGlobalProc.exit;
 
           console.log("Installing dependencies...");
-          const pnpmProcess = await spawn("pnpm", ["i", "--prefix", "../.global"]);
+          const pnpmProcess = await spawn("pnpm", ["i", "--prefix", ".global"]);
+          pnpmProcess.output.pipeTo(new WritableStream({
+            write(data) { console.log("pnpm:", data); }
+          }));
           const exitCode = await pnpmProcess.exit;
 
           if (exitCode !== 0) {
             throw new Error("pnpm install failed");
           }
+
+          // Verify Claude binary was installed
+          console.log("Verifying Claude installation...");
+          const lsClaudeProc = await spawn("ls", ["-la", ".global/node_modules/.bin/"]);
+          lsClaudeProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("Binaries installed:", data); }
+          }));
+          await lsClaudeProc.exit;
+
+          // Test Claude binary
+          console.log("Testing Claude binary...");
+          const claudeTestProc = await spawn(".global/node_modules/.bin/claude", ["--version"]);
+          claudeTestProc.output.pipeTo(new WritableStream({
+            write(data) { console.log("Claude version:", data); }
+          }));
+          await claudeTestProc.exit;
 
           console.log("Setup complete!");
           setSetupComplete(true);
@@ -73,7 +176,7 @@ export const WebContainerTerminal = () => {
         }
       })();
     }
-  }, [state.status, container, setupComplete, mount, spawn]);
+  }, [state.status, container, setupComplete, mount, spawn, readdir]);
 
   useEffect(() => {
     if (

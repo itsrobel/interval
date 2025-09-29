@@ -2,10 +2,11 @@ import type { FileSystemTree } from "@webcontainer/api";
 
 // jshrc configuration for shell
 export const jshrc = `export DISABLE_TELEMETRY=1
-alias claude=~/.global/node_modules/.bin/claude
-alias isogit=~/.global/node_modules/.bin/isogit
-alias tsx=~/.global/node_modules/.bin/tsx
-alias git="~/.global/node_modules/.bin/tsx ~/.global/src/git.ts"
+export PATH="$HOME/.global/node_modules/.bin:$PATH"
+alias claude=$HOME/.global/node_modules/.bin/claude
+alias isogit=$HOME/.global/node_modules/.bin/isogit
+alias tsx=$HOME/.global/node_modules/.bin/tsx
+alias git="$HOME/.global/node_modules/.bin/tsx $HOME/.global/src/git.ts"
 `;
 
 // Git wrapper for WebContainer
