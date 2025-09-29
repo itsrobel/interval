@@ -1,6 +1,8 @@
-import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import type { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffectOnce } from "./useEffectOnce";
+import { useIsMobile } from "./useIsMobile";
 
 type UseTerminalOptions = {
   onData?: (data: string) => void;
@@ -8,88 +10,148 @@ type UseTerminalOptions = {
 };
 
 type UseTerminalReturn = {
-  terminalRef: React.RefObject<HTMLDivElement | null>;
   terminal: Terminal | null;
+  terminalRef: (element: HTMLDivElement | null) => void;
   write: (data: string) => void;
+  clear: () => void;
   fit: () => void;
   cols: number;
   rows: number;
 };
 
-export const useTerminal = ({
-  onData,
-  onResize,
-}: UseTerminalOptions): UseTerminalReturn => {
-  const terminalRef = useRef<HTMLDivElement>(null);
+export const useTerminal = (
+  options: UseTerminalOptions = {},
+): UseTerminalReturn => {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
-  const [cols, setCols] = useState(80);
-  const [rows, setRows] = useState(24);
+  const [dimensions, setDimensions] = useState({ cols: 80, rows: 10 });
+  const terminalElementRef = useRef<HTMLDivElement | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const isMobile = useIsMobile();
 
-  useEffect(() => {
-    if (!terminalRef.current) return;
+  useEffectOnce(() => {
+    if (!terminalElementRef.current || typeof window === "undefined") return;
 
-    const term = new Terminal({
-      theme: {
-        background: "#000000",
-        foreground: "#ffffff",
-        cursor: "#ffffff",
-      },
-      fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
-      fontSize: 14,
-      cursorBlink: true,
-    });
+    const initTerminal = async () => {
+      const { Terminal } = await import("@xterm/xterm");
 
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-
-    term.open(terminalRef.current);
-    fit.fit();
-
-    setCols(term.cols);
-    setRows(term.rows);
-
-    if (onData) {
-      term.onData(onData);
-    }
-
-    if (onResize) {
-      term.onResize(({ cols, rows }) => {
-        setCols(cols);
-        setRows(rows);
-        onResize(cols, rows);
+      const term = new Terminal({
+        convertEol: true,
+        fontSize: isMobile ? 12 : 14,
+        fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", monospace',
+        scrollback: isMobile ? 500 : 1000,
+        scrollOnUserInput: true,
+        smoothScrollDuration: isMobile ? 0 : 125,
+        theme: {
+          background: "#000000",
+          foreground: "#e4e4e7",
+          cursor: "#e4e4e7",
+          cursorAccent: "#000000",
+          selectionBackground: "#3f3f46",
+          black: "#000000",
+          red: "#ef4444",
+          green: "#10b981",
+          yellow: "#f59e0b",
+          blue: "#3b82f6",
+          magenta: "#a855f7",
+          cyan: "#06b6d4",
+          white: "#e4e4e7",
+          brightBlack: "#52525b",
+          brightRed: "#f87171",
+          brightGreen: "#34d399",
+          brightYellow: "#fbbf24",
+          brightBlue: "#60a5fa",
+          brightMagenta: "#c084fc",
+          brightCyan: "#22d3ee",
+          brightWhite: "#f4f4f5",
+        },
       });
-    }
 
-    setTerminal(term);
-    setFitAddon(fit);
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+
+      if (terminalElementRef.current) {
+        term.open(terminalElementRef.current);
+      }
+
+      fitAddon.fit();
+
+      const { cols, rows } = term;
+      setDimensions({ cols, rows });
+
+      if (options.onData) {
+        term.onData((data) => {
+          options.onData?.(data);
+          // On mobile, ensure scroll to bottom on Enter key
+          if (isMobile && data === '\r') {
+            requestAnimationFrame(() => {
+              term.scrollToBottom();
+            });
+          }
+        });
+      }
+
+      if (options.onResize) {
+        term.onResize(({ cols, rows }) => {
+          setDimensions({ cols, rows });
+          options.onResize?.(cols, rows);
+        });
+      }
+
+      fitAddonRef.current = fitAddon;
+      setTerminal(term);
+    };
+
+    initTerminal();
 
     return () => {
-      term.dispose();
+      terminal?.dispose();
+      fitAddonRef.current = null;
     };
-  }, [onData, onResize]);
+  });
+
+  const terminalRef = useCallback((element: HTMLDivElement | null) => {
+    terminalElementRef.current = element;
+  }, []);
 
   const write = useCallback(
     (data: string) => {
       terminal?.write(data);
+      // Ensure terminal scrolls to bottom on mobile after writing
+      if (isMobile && terminal) {
+        terminal.scrollToBottom();
+      }
     },
-    [terminal],
+    [terminal, isMobile],
   );
 
+  const clear = useCallback(() => {
+    terminal?.clear();
+  }, [terminal]);
+
   const fit = useCallback(() => {
-    fitAddon?.fit();
-    if (terminal) {
-      setCols(terminal.cols);
-      setRows(terminal.rows);
+    if (fitAddonRef.current && terminal) {
+      fitAddonRef.current.fit();
+      const { cols, rows } = terminal;
+      setDimensions({ cols, rows });
     }
-  }, [fitAddon, terminal]);
+  }, [terminal]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      fit();
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [fit]);
 
   return {
-    terminalRef,
     terminal,
+    terminalRef,
     write,
+    clear,
     fit,
-    cols,
-    rows,
+    cols: dimensions.cols,
+    rows: dimensions.rows,
   };
 };

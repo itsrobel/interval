@@ -26,14 +26,6 @@ type UseWebContainerReturn = {
   readdir: (path: string) => Promise<string[]>;
 };
 
-declare global {
-  interface Window {
-    WEBCONTAINER_API_IFRAME_URL?: string;
-  }
-}
-
-window.WEBCONTAINER_API_IFRAME_URL = location.origin;
-
 export const useWebContainer = (): UseWebContainerReturn => {
   const [container, setContainer] = useState<WebContainer | null>(null);
   const [state, setState] = useState<WebContainerState>({ status: "idle" });
@@ -49,7 +41,7 @@ export const useWebContainer = (): UseWebContainerReturn => {
       try {
         const { WebContainer } = await import("@webcontainer/api");
         const instance = await WebContainer.boot({
-          // coep: "require-corp",
+          coep: "require-corp",
           workdirName: "home",
           forwardPreviewErrors: true,
         });

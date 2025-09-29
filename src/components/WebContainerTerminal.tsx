@@ -2,14 +2,16 @@
 
 import type { WebContainerProcess } from "@webcontainer/api";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LoadingState } from "./LoadingState";
 import { Terminal, type TerminalHandle } from "./Terminal";
+import { TerminalHeader } from "./TerminalHeader";
 import { useWebContainer } from "../hooks/useWebContainer";
-import { templates, jshrc } from "../lib/templates";
-import { wait } from "../utils/wait";
+import { jshrc, templates } from "../lib/templates";
 
 export const WebContainerTerminal = () => {
   const { container, state, mount, spawn, writeFile } = useWebContainer();
-  const [terminalProcess, setTerminalProcess] = useState<WebContainerProcess | null>(null);
+  const [terminalProcess, setTerminalProcess] =
+    useState<WebContainerProcess | null>(null);
   const [terminalReady, setTerminalReady] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   const terminalComponentRef = useRef<TerminalHandle | null>(null);
@@ -18,13 +20,10 @@ export const WebContainerTerminal = () => {
     if (!container || terminalProcess || !terminalReady) return;
 
     try {
-      await spawn("rm", ["~/.jshrc"]);
-      await writeFile(".jshrc", jshrc);
-      await spawn("mv", [".jshrc", "../.jshrc"]);
-      await spawn("source", ["~/.jshrc"]);
+      console.log("Setting up shell configuration...");
+      await writeFile("../.jshrc", jshrc);
 
-      await spawn("mkdir", ["-p", "../.global"]);
-
+      console.log("Starting shell...");
       const shellProcess = await spawn("jsh");
 
       setTerminalProcess(shellProcess);
@@ -32,6 +31,7 @@ export const WebContainerTerminal = () => {
       if (terminalComponentRef.current) {
         await terminalComponentRef.current.connectProcess(shellProcess);
         terminalComponentRef.current.fit();
+        console.log("Shell started successfully!");
       } else {
         console.error("Terminal ref not available");
       }
@@ -45,39 +45,54 @@ export const WebContainerTerminal = () => {
   }, []);
 
   useEffect(() => {
-    if (state.status === "ready" && container) {
+    if (state.status === "ready" && container && !setupComplete) {
       // Load and mount the selected template
       (async () => {
-        await mount(await templates["global"]());
+        try {
+          console.log("Mounting file system...");
+          await mount(await templates["global"]());
 
-        await wait(1000);
+          console.log("Organizing files...");
+          await spawn("mkdir", ["-p", "../.global/src"]);
+          await spawn("mv", ["git.ts", "../.global/src/git.ts"]);
+          await spawn("mv", ["package.json", "../.global/package.json"]);
+          await spawn("mv", ["pnpm-lock.yaml", "../.global/pnpm-lock.yaml"]);
 
-        await spawn("mkdir", ["-p", "../.global/src"]);
-        await spawn("mv", ["git.ts", "../.global/src/git.ts"]);
-        await spawn("mv", ["package.json", "../.global/package.json"]);
-        await spawn("mv", ["pnpm-lock.yaml", "../.global/pnpm-lock.yaml"]);
+          console.log("Installing dependencies...");
+          const pnpmProcess = await spawn("pnpm", ["i", "--prefix", "../.global"]);
+          const exitCode = await pnpmProcess.exit;
 
-        const pnpmProcess = await spawn("pnpm", ["i", "--prefix", "../.global"]);
-        const exitCode = await pnpmProcess.exit;
-        if (exitCode !== 0) {
-          throw new Error('pnpm install failed');
+          if (exitCode !== 0) {
+            throw new Error("pnpm install failed");
+          }
+
+          console.log("Setup complete!");
+          setSetupComplete(true);
+        } catch (error) {
+          console.error("WebContainer setup failed:", error);
         }
-
-        setSetupComplete(true);
       })();
     }
-  }, [state.status, container, mount, spawn]);
+  }, [state.status, container, setupComplete, mount, spawn]);
 
   useEffect(() => {
     if (
       state.status === "ready" &&
       container &&
       terminalReady &&
-      !terminalProcess
+      !terminalProcess &&
+      setupComplete
     ) {
       startShell();
     }
-  }, [state.status, container, terminalReady, terminalProcess, startShell]);
+  }, [
+    state.status,
+    container,
+    terminalReady,
+    terminalProcess,
+    setupComplete,
+    startShell,
+  ]);
 
   const handleTerminalResize = useCallback(
     (cols: number, rows: number) => {
@@ -89,22 +104,9 @@ export const WebContainerTerminal = () => {
   if (state.status === "idle" || state.status === "booting" || !setupComplete) {
     return (
       <div className="flex h-screen w-screen flex-col bg-zinc-950">
-        <div className="flex-shrink-0 border-b border-zinc-700 bg-zinc-800 p-4">
-          <h1 className="text-2xl font-bold text-white">
-            Claude Code Terminal
-          </h1>
-          <p className="text-sm text-zinc-400">
-            {state.status === "booting" ? "Booting WebContainer..." : "Setting up Claude Code environment..."}
-          </p>
-        </div>
-        <div className="flex flex-1 items-center justify-center overflow-hidden">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="text-6xl">🤖</div>
-            <h2 className="font-bold text-2xl text-white">
-              {state.status === "booting" ? "Booting WebContainer..." : "Installing Claude Code..."}
-            </h2>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+        <TerminalHeader status={state.status} />
+        <div className="flex flex-1 overflow-hidden">
+          <LoadingState className="flex-1" />
         </div>
       </div>
     );
@@ -113,14 +115,7 @@ export const WebContainerTerminal = () => {
   if (state.status === "error") {
     return (
       <div className="flex h-screen w-screen flex-col bg-zinc-950">
-        <div className="flex-shrink-0 border-b border-zinc-700 bg-zinc-800 p-4">
-          <h1 className="text-2xl font-bold text-white">
-            Claude Code Terminal
-          </h1>
-          <p className="text-sm text-zinc-400">
-            WebContainer failed to initialize
-          </p>
-        </div>
+        <TerminalHeader status={state.status} />
         <div className="flex flex-1 items-center justify-center overflow-hidden">
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="text-6xl">💥</div>
@@ -138,14 +133,7 @@ export const WebContainerTerminal = () => {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-zinc-950">
-      <div className="flex-shrink-0 border-b border-zinc-700 bg-zinc-800 p-4">
-        <h1 className="text-2xl font-bold text-white">
-          Claude Code Terminal
-        </h1>
-        <p className="text-sm text-zinc-400">
-          Run <code className="bg-zinc-700 px-1 rounded">claude login</code> to get started, then use Claude Code commands
-        </p>
-      </div>
+      <TerminalHeader status={state.status} />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="relative flex-1 overflow-hidden p-0 sm:p-2">
