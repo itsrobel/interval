@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { WebContainerTerminal } from '../components/WebContainerTerminal'
+import { Header } from '../components/header/Header'
+import { Homepage } from '../components/Homepage.client'
 
 export const Route = createFileRoute('/')({
   ssr: false,
@@ -7,5 +8,10 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  return <WebContainerTerminal />
+  return (
+    <div className="flex size-full flex-col bg-bolt-elements-background-depth-1">
+      <Header />
+      <Homepage />
+    </div>
+  )
 }

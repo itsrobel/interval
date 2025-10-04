@@ -22,7 +22,9 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@convex/*": ["./convex/*"],
+      "@ui/*": ["./node_modules/@convex-dev/design-system/dist/*"]
     },
 
     "esModuleInterop": true,

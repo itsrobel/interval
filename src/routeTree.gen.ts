@@ -9,11 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AnotherPageRouteImport } from './routes/anotherPage'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ScriptsFilenameRouteImport } from './routes/scripts.$filename'
+import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as ApiClaudeChatRouteImport } from './routes/api/claude-chat'
+import { Route as ApiChatRouteImport } from './routes/api.chat'
+import { Route as WebcontainerPreviewIdRouteImport } from './routes/webcontainer.preview.$id'
 import { Route as ApiV1CorsProxySplatRouteImport } from './routes/api/v1/cors/proxy/$'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnotherPageRoute = AnotherPageRouteImport.update({
   id: '/anotherPage',
   path: '/anotherPage',
@@ -24,9 +34,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScriptsFilenameRoute = ScriptsFilenameRouteImport.update({
+  id: '/scripts/$filename',
+  path: '/scripts/$filename',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIdRoute = ChatIdRouteImport.update({
+  id: '/chat/$id',
+  path: '/chat/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiClaudeChatRoute = ApiClaudeChatRouteImport.update({
   id: '/api/claude-chat',
   path: '/api/claude-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WebcontainerPreviewIdRoute = WebcontainerPreviewIdRouteImport.update({
+  id: '/webcontainer/preview/$id',
+  path: '/webcontainer/preview/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV1CorsProxySplatRoute = ApiV1CorsProxySplatRouteImport.update({
@@ -38,44 +68,94 @@ const ApiV1CorsProxySplatRoute = ApiV1CorsProxySplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/settings': typeof SettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/claude-chat': typeof ApiClaudeChatRoute
+  '/chat/$id': typeof ChatIdRoute
+  '/scripts/$filename': typeof ScriptsFilenameRoute
+  '/webcontainer/preview/$id': typeof WebcontainerPreviewIdRoute
   '/api/v1/cors/proxy/$': typeof ApiV1CorsProxySplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/settings': typeof SettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/claude-chat': typeof ApiClaudeChatRoute
+  '/chat/$id': typeof ChatIdRoute
+  '/scripts/$filename': typeof ScriptsFilenameRoute
+  '/webcontainer/preview/$id': typeof WebcontainerPreviewIdRoute
   '/api/v1/cors/proxy/$': typeof ApiV1CorsProxySplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/anotherPage': typeof AnotherPageRoute
+  '/settings': typeof SettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/claude-chat': typeof ApiClaudeChatRoute
+  '/chat/$id': typeof ChatIdRoute
+  '/scripts/$filename': typeof ScriptsFilenameRoute
+  '/webcontainer/preview/$id': typeof WebcontainerPreviewIdRoute
   '/api/v1/cors/proxy/$': typeof ApiV1CorsProxySplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/anotherPage' | '/api/claude-chat' | '/api/v1/cors/proxy/$'
+  fullPaths:
+    | '/'
+    | '/anotherPage'
+    | '/settings'
+    | '/api/chat'
+    | '/api/claude-chat'
+    | '/chat/$id'
+    | '/scripts/$filename'
+    | '/webcontainer/preview/$id'
+    | '/api/v1/cors/proxy/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/anotherPage' | '/api/claude-chat' | '/api/v1/cors/proxy/$'
+  to:
+    | '/'
+    | '/anotherPage'
+    | '/settings'
+    | '/api/chat'
+    | '/api/claude-chat'
+    | '/chat/$id'
+    | '/scripts/$filename'
+    | '/webcontainer/preview/$id'
+    | '/api/v1/cors/proxy/$'
   id:
     | '__root__'
     | '/'
     | '/anotherPage'
+    | '/settings'
+    | '/api/chat'
     | '/api/claude-chat'
+    | '/chat/$id'
+    | '/scripts/$filename'
+    | '/webcontainer/preview/$id'
     | '/api/v1/cors/proxy/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnotherPageRoute: typeof AnotherPageRoute
+  SettingsRoute: typeof SettingsRoute
+  ApiChatRoute: typeof ApiChatRoute
   ApiClaudeChatRoute: typeof ApiClaudeChatRoute
+  ChatIdRoute: typeof ChatIdRoute
+  ScriptsFilenameRoute: typeof ScriptsFilenameRoute
+  WebcontainerPreviewIdRoute: typeof WebcontainerPreviewIdRoute
   ApiV1CorsProxySplatRoute: typeof ApiV1CorsProxySplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/anotherPage': {
       id: '/anotherPage'
       path: '/anotherPage'
@@ -90,11 +170,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/scripts/$filename': {
+      id: '/scripts/$filename'
+      path: '/scripts/$filename'
+      fullPath: '/scripts/$filename'
+      preLoaderRoute: typeof ScriptsFilenameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/$id': {
+      id: '/chat/$id'
+      path: '/chat/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof ChatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/claude-chat': {
       id: '/api/claude-chat'
       path: '/api/claude-chat'
       fullPath: '/api/claude-chat'
       preLoaderRoute: typeof ApiClaudeChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/webcontainer/preview/$id': {
+      id: '/webcontainer/preview/$id'
+      path: '/webcontainer/preview/$id'
+      fullPath: '/webcontainer/preview/$id'
+      preLoaderRoute: typeof WebcontainerPreviewIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/cors/proxy/$': {
@@ -110,7 +218,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnotherPageRoute: AnotherPageRoute,
+  SettingsRoute: SettingsRoute,
+  ApiChatRoute: ApiChatRoute,
   ApiClaudeChatRoute: ApiClaudeChatRoute,
+  ChatIdRoute: ChatIdRoute,
+  ScriptsFilenameRoute: ScriptsFilenameRoute,
+  WebcontainerPreviewIdRoute: WebcontainerPreviewIdRoute,
   ApiV1CorsProxySplatRoute: ApiV1CorsProxySplatRoute,
 }
 export const routeTree = rootRouteImport
